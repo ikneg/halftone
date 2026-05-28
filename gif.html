@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>GIF文字ハーフトーン</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
+<style>
+body{
+    background:#111;
+    color:white;
+    font-family:sans-serif;
+    padding:20px;
+}
+
+label{
+    display:block;
+    margin:10px 0;
+}
+
+canvas{
+    border:1px solid #444;
+    margin-top:20px;
+    max-width:100%;
+}
+
+button{
+    margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<a href="/">画像モード</a>
+
+<h2>GIF → 文字ハーフトーン → GIF出力</h2>
+
+<input type="file" id="gifInput" accept=".gif">
+
+<label>
+横幅:
+<input type="number" id="sizeInput" value="100">
+</label>
+
+<label>
+使用文字:
+<input type="text" id="charInput" value="#">
+</label>
+
+<label>
+色数:
+<input type="number" id="colorInput" value="16" min="2" max="256">
+</label>
+
+<label>
+横余白:
+<input type="number" id="marginX" value="0">
+</label>
+
+<label>
+縦余白:
+<input type="number" id="marginY" value="0">
+</label>
+
+<button id="convert">変換開始</button>
+<button id="download">GIF保存</button>
+
+<br>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let outputBlob = null;
+
+// ブラウザ標準のImageDecoderを使ってGIFを確実にコマ割りする関数
+async function extractGifFrames(file) {
+    if (typeof ImageDecoder === "undefined") {
+        alert("お使いのブラウザはImageDecoder非対応です。最新のChromeやEdgeでお試しください。");
+        return [];
+    }
+    const response = new Response(file);
+    const decoder = new ImageDecoder({ data: response.body, type: "image/gif" });
+    const frames = [];
+    
+    await decoder.completed;
+    const numFrames = decoder.tracks.selectedTrack.frameCount;
+    
+    for (let i = 0; i < numFrames; i++) {
+        const result = await decoder.decode({ frameIndex: i });
+        frames.push({
+            image: result.image,
+            delay: result.image.duration / 1000 // ミリ秒換算
+        });
+    }
+    return frames;
+}
+
+document.getElementById("convert").onclick = async () => {
+    const file = document.getElementById("gifInput").files[0];
+    if (!file) {
+        alert("GIFを選択してください");
+        return;
+    }
+
+    const frames = await extractGifFrames(file);
+    if (frames.length === 0) return;
+
+    // 設定値の取得（すべて確実に整数/数値化する）
+    const widthChars = Math.floor(Number(document.getElementById("sizeInput").value));
+    const char = document.getElementById("charInput").value || "#";
+    const colors = Math.floor(Number(document.getElementById("colorInput").value));
+    const marginX = Math.floor(Number(document.getElementById("marginX").value));
+    const marginY = Math.floor(Number(document.getElementById("marginY").value));
+
+    const levels = Math.ceil(Math.cbrt(colors));
+
+    // gif.worker.js のクロスドメイン（セキュリティ制限）対策
+    const workerResponse = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
+    const workerCode = await workerResponse.text();
+    const workerBlob = new Blob([workerCode], { type: "application/javascript" });
+    const workerUrl = URL.createObjectURL(workerBlob);
+
+    const encoder = new GIF({
+        workers: 2,
+        quality: 10,
+        workerScript: workerUrl
+    });
+
+    // 最初のフレームから元画像のサイズを計算
+    const firstFrame = frames[0].image;
+    const originalWidth = firstFrame.displayWidth;
+    const originalHeight = firstFrame.displayHeight;
+
+    const aspect = originalHeight / originalWidth;
+    const width = widthChars;
+    const height = Math.floor(width * aspect * 0.55);
+
+    // フォントとセルサイズを事前に計算
+    const fontSize = 12;
+    ctx.font = `${fontSize}px monospace`;
+    const charWidth = ctx.measureText(char).width;
+    const cellWidth = Math.floor(charWidth + marginX);
+    const cellHeight = Math.floor(fontSize + marginY);
+
+    // 【修正】メインキャンバスのサイズはループの前に1度だけ確実に決定する（数値型を固定）
+    canvas.width = Math.floor(width * cellWidth);
+    canvas.height = Math.floor(height * cellHeight);
+
+    // 各フレームの処理
+    for (const frame of frames) {
+        const temp = document.createElement("canvas");
+        const tctx = temp.getContext("2d");
+        temp.width = originalWidth;
+        temp.height = originalHeight;
+        tctx.drawImage(frame.image, 0, 0);
+
+        const scaled = document.createElement("canvas");
+        scaled.width = width;
+        scaled.height = height;
+        const sctx = scaled.getContext("2d");
+        sctx.drawImage(temp, 0, 0, width, height);
+
+        const data = sctx.getImageData(0, 0, width, height).data;
+
+        // メインキャンバスを黒でクリア
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = `${fontSize}px monospace`; // サイズ変更でフォントがリセットされる対策
+
+        // 文字ハーフトーン処理
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                let r = data[i];
+                let g = data[i + 1];
+                let b = data[i + 2];
+                const brightness = (r + g + b) / 3;
+
+                if (brightness > 240) continue;
+
+                r = Math.round(r / 255 * (levels - 1)) * (255 / (levels - 1));
+                g = Math.round(g / 255 * (levels - 1)) * (255 / (levels - 1));
+                b = Math.round(b / 255 * (levels - 1)) * (255 / (levels - 1));
+
+                ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
+                ctx.fillText(char, x * cellWidth, (y + 1) * cellHeight);
+            }
+        }
+
+        // 使用済みのVideoFrameオブジェクトを解放（メモリリーク防止）
+        frame.image.close();
+
+        // 【修正】第1引数にコンテキスト(ctx)ではなく、canvas要素そのものを渡す形に変更
+        encoder.addFrame(canvas, {
+            copy: true,
+            delay: frame.delay || 50
+        });
+    }
+
+    // 保存の準備ができたときの処理
+    encoder.on("finished", blob => {
+        outputBlob = blob;
+        alert("完成！「GIF保存」ボタンを押してください。");
+    });
+
+    encoder.render();
+};
+
+// ダウンロード処理
+document.getElementById("download").onclick = () => {
+    if (!outputBlob) {
+        alert("先に変換してください");
+        return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(outputBlob);
+    a.download = "ascii.gif";
+    a.click();
+};
+</script>
+
+</body>
+</html>

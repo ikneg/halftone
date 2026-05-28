@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字ハーフトーン生成</title>
+
+<meta property="og:title" content="文字ハーフトーン生成ツール">
+<meta property="og:description" content="画像を読み込ませるだけで、アスキーアート風の画像を作成。gifアニメも可能。">
+<meta property="og:image" content="https://yourdomain.com/assets/og-image.png"> <meta property="og:type" content="website">
+<meta property="og:url" content="https://yourdomain.com/index.html"> <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="文字ハーフトーン生成ツール">
+<meta name="twitter:description" content="画像を読み込ませるだけで、アスキーアート風の画像を作成。gifアニメも可能。">
+<meta name="twitter:image" content="https://yourdomain.com/assets/og-image.png"> <style>
+body {
+    background: #111;
+    color: white;
+    font-family: sans-serif;
+    padding: 20px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+}
+
+input, button {
+    padding: 5px;
+    margin-top: 5px;
+}
+
+canvas {
+    border: 1px solid #444;
+    margin-top: 20px;
+    max-width: 100%;
+    background: black;
+}
+</style>
+</head>
+
+<body>
+
+<a href="/gif.html">gifモード</a>
+
+<h2>文字ハーフトーン生成</h2>
+
+<label>
+画像:
+<input type="file" id="imgInput">
+</label>
+
+<label>
+横幅（文字数）:
+<input type="number" id="sizeInput" value="100" min="10" max="500">
+</label>
+
+<label>
+使用文字:
+<input type="text" id="charInput" value="#">
+</label>
+
+<label>
+色数:
+<input type="number" id="colorCount" value="16" min="2" max="256">
+</label>
+
+<label>
+横余白:
+<input type="number" id="marginX" value="0" min="0" max="50">
+</label>
+
+<label>
+縦余白:
+<input type="number" id="marginY" value="0" min="0" max="50">
+</label>
+
+<br>
+
+<button id="convert">変換</button>
+<button id="download">PNG保存</button>
+
+<br>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const imgInput = document.getElementById("imgInput");
+const sizeInput = document.getElementById("sizeInput");
+const charInput = document.getElementById("charInput");
+const colorCountInput = document.getElementById("colorCount");
+const marginXInput = document.getElementById("marginX");
+const marginYInput = document.getElementById("marginY");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let selectedFile = null;
+
+imgInput.addEventListener("change", e => {
+    selectedFile = e.target.files[0];
+});
+
+convert.onclick = () => {
+    if (!selectedFile) {
+        alert("画像を選択してください");
+        return;
+    }
+
+    const img = new Image();
+    img.src = URL.createObjectURL(selectedFile);
+
+    img.onload = () => {
+        const width = parseInt(sizeInput.value);
+        const aspect = img.height / img.width;
+        const height = Math.floor(width * aspect * 0.55);
+
+        const temp = document.createElement("canvas");
+        temp.width = width;
+        temp.height = height;
+        const tctx = temp.getContext("2d");
+        tctx.drawImage(img, 0, 0, width, height);
+
+        const data = tctx.getImageData(0, 0, width, height).data;
+        const char = charInput.value || "#";
+        const colorCount = parseInt(colorCountInput.value);
+        const levels = Math.ceil(Math.cbrt(colorCount));
+        const marginX = parseInt(marginXInput.value);
+        const marginY = parseInt(marginYInput.value);
+        const fontSize = 12;
+
+        ctx.font = `${fontSize}px monospace`;
+        const charWidth = ctx.measureText(char).width;
+        const cellWidth = charWidth + marginX;
+        const cellHeight = fontSize + marginY;
+
+        canvas.width = width * cellWidth;
+        canvas.height = height * cellHeight;
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                let r = data[i];
+                let g = data[i + 1];
+                let b = data[i + 2];
+                const brightness = (r + g + b) / 3;
+
+                if (brightness > 240) continue;
+
+                // 色数制限
+                r = Math.round(r / 255 * (levels - 1)) * (255 / (levels - 1));
+                g = Math.round(g / 255 * (levels - 1)) * (255 / (levels - 1));
+                b = Math.round(b / 255 * (levels - 1)) * (255 / (levels - 1));
+
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillText(char, x * cellWidth, (y + 1) * cellHeight);
+            }
+        }
+    };
+};
+
+download.onclick = () => {
+    const a = document.createElement("a");
+    a.download = "halftone.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+};
+</script>
+
+</body>
+</html>
