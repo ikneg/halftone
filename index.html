@@ -7,31 +7,188 @@
 
 <meta property="og:title" content="文字ハーフトーン生成ツール">
 <meta property="og:description" content="画像を読み込ませるだけで、アスキーアート風の画像を作成。gifアニメも可能。">
-<meta property="og:image" content="https://ikneg.github.io/halftone/haftone.png"> <meta property="og:type" content="website">
-<meta property="og:url" content="https://ikneg.github.io/halftone/"> <meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="https://ikneg.github.io/halftone/halftone.png"> 
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ikneg.github.io/halftone/"> 
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="文字ハーフトーン生成ツール">
 <meta name="twitter:description" content="画像を読み込ませるだけで、アスキーアート風の画像を作成。gifアニメも可能。">
-<meta name="twitter:image" content="https://ikneg.github.io/halftone/halftone.png"> <style>
+<meta name="twitter:image" content="https://ikneg.github.io/halftone/halftone.png"> 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
+<style>
+/* ヒラギノ公式サイトを意識したモダンミニマリズム */
 body {
-    background: #111;
-    color: white;
-    font-family: sans-serif;
-    padding: 20px;
+    background: #ffffff;
+    color: #111111;
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 60px 20px;
+    margin: 0;
+    letter-spacing: 0.06em;
+}
+
+.container {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+h2 {
+    font-size: 1.3rem;
+    font-weight: 300;
+    color: #000000;
+    margin: 0 0 30px 0;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e5e5;
+    letter-spacing: 0.1em;
+}
+
+.tabs {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.tab-link {
+    font-size: 0.85rem;
+    color: #999999;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.tab-link.active {
+    color: #000000;
+    font-weight: 600;
+}
+
+.mode-content {
+    display: none;
+}
+
+.mode-content.active {
+    display: block;
+}
+
+.preview-images {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    background: #fdfdfd;
+    padding: 15px;
+    border: 1px solid #f0f0f0;
+}
+
+.preview-images .preview-box {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.65rem;
+    color: #888888;
+    gap: 5px;
+}
+
+.preview-images img {
+    height: 200px;
+    width: auto;
+    border: 1px solid #e5e5e5;
+    object-fit: cover;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
 }
 
 label {
     display: block;
-    margin-top: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #444444;
+    margin-bottom: 8px;
+    text-transform: uppercase;
 }
 
-input, button {
-    padding: 5px;
-    margin-top: 5px;
+input[type="file"] {
+    font-size: 0.8rem;
+    color: #666666;
+}
+
+input[type="number"], input[type="text"] {
+    width: 100%;
+    padding: 10px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #cccccc;
+    color: #111111;
+    font-size: 0.95rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #000000;
+}
+
+.btn-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 40px;
+}
+
+button {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 12px 24px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: #000000;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: #333333;
+    border-color: #333333;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #000000;
+}
+
+.btn-secondary:hover {
+    background: #f5f5f5;
+}
+
+.status {
+    font-size: 0.8rem;
+    color: #666666;
+    margin-top: 15px;
+}
+
+.output-area {
+    margin-top: 50px;
 }
 
 canvas {
-    border: 1px solid #444;
-    margin-top: 20px;
+    border: 1px solid #e5e5e5;
     max-width: 100%;
     background: black;
 }
@@ -40,131 +197,296 @@ canvas {
 
 <body>
 
-<a href="gif.html">gifモード</a>
+<div class="container">
+    
+    <div class="tabs">
+        <span id="tabImg" class="tab-link active" onclick="switchMode('image')">IMAGE MODE</span>
+        <span id="tabGif" class="tab-link" onclick="switchMode('gif')">GIF MODE</span>
+    </div>
 
-<h2>文字ハーフトーン生成</h2>
+    <div id="imgPreviews" class="preview-images">
+        <div class="preview-box">
+            <span>BEFORE</span>
+            <img src="21.png" alt="source" onerror="this.parentNode.style.display='none';">
+        </div>
+        <div class="preview-box">
+            <span>AFTER</span>
+            <img src="halftone.png" alt="halftone" onerror="this.parentNode.style.display='none';">
+        </div>
+    </div>
 
-<label>
-画像:
-<input type="file" id="imgInput">
-</label>
+    <div id="gifPreviews" class="preview-images" style="display: none;">
+        <div class="preview-box">
+            <span>BEFORE (GIF)</span>
+            <img src="atri.gif" alt="gif before" onerror="this.style.display='none'; this.parentNode.insertAdjacentHTML('beforeend','<div style=\'height:70px; width:70px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center;\'>NO GIF</div>')">
+        </div>
+        <div class="preview-box">
+            <span>AFTER (GIF)</span>
+            <img src="atri_after.gif" alt="gif after" onerror="this.style.display='none'; this.parentNode.insertAdjacentHTML('beforeend','<div style=\'height:70px; width:70px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center;\'>NO GIF</div>')">
+        </div>
+    </div>
 
-<label>
-横幅（文字数）:
-<input type="number" id="sizeInput" value="100" min="10" max="500">
-</label>
+    <h2>文字ハーフトーン生成 <span id="modeTitle" style="font-size:0.9rem; color:#888;">[IMAGE]</span></h2>
 
-<label>
-使用文字:
-<input type="text" id="charInput" value="#">
-</label>
+    <div class="form-group">
+        <div id="imageInputGroup" class="mode-content active">
+            <label>画像</label>
+            <input type="file" id="imgInput" accept="image/*">
+        </div>
+        <div id="gifInputGroup" class="mode-content">
+            <label>GIFアニメーション</label>
+            <input type="file" id="gifInput" accept=".gif">
+        </div>
+    </div>
 
-<label>
-色数:
-<input type="number" id="colorCount" value="16" min="2" max="256">
-</label>
+    <div class="grid-2">
+        <div class="form-group">
+            <label>横幅（文字数）</label>
+            <input type="number" id="sizeInput" value="100" min="10" max="500">
+        </div>
 
-<label>
-横余白:
-<input type="number" id="marginX" value="0" min="0" max="50">
-</label>
+        <div class="form-group">
+            <label>使用文字</label>
+            <input type="text" id="charInput" value="#">
+        </div>
+    </div>
 
-<label>
-縦余白:
-<input type="number" id="marginY" value="0" min="0" max="50">
-</label>
+    <div class="form-group">
+        <label>色数</label>
+        <input type="number" id="colorCount" value="16" min="2" max="256">
+    </div>
 
-<br>
+    <div class="grid-2">
+        <div class="form-group">
+            <label>横余白</label>
+            <input type="number" id="marginX" value="0" min="0" max="50">
+        </div>
 
-<button id="convert">変換</button>
-<button id="download">PNG保存</button>
+        <div class="form-group">
+            <label>縦余白</label>
+            <input type="number" id="marginY" value="0" min="0" max="50">
+        </div>
+    </div>
 
-<br>
+    <div class="btn-group">
+        <button id="convert" class="btn-primary">変換</button>
+        <button id="download" class="btn-secondary">保存</button>
+    </div>
 
-<canvas id="canvas"></canvas>
+    <div id="statusText" class="status"></div>
+
+    <div class="output-area">
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
 
 <script>
-const imgInput = document.getElementById("imgInput");
-const sizeInput = document.getElementById("sizeInput");
-const charInput = document.getElementById("charInput");
-const colorCountInput = document.getElementById("colorCount");
-const marginXInput = document.getElementById("marginX");
-const marginYInput = document.getElementById("marginY");
+let currentMode = 'image';
+let outputBlob = null;
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const statusText = document.getElementById("statusText");
+
+function switchMode(mode) {
+    currentMode = mode;
+    outputBlob = null;
+    statusText.textContent = "";
+
+    if (mode === 'image') {
+        document.getElementById("tabImg").classList.add("active");
+        document.getElementById("tabGif").classList.remove("active");
+        document.getElementById("imgPreviews").style.display = "flex";
+        document.getElementById("gifPreviews").style.display = "none";
+        document.getElementById("imageInputGroup").classList.add("active");
+        document.getElementById("gifInputGroup").classList.remove("active");
+        document.getElementById("modeTitle").textContent = "[IMAGE]";
+    } else {
+        document.getElementById("tabImg").classList.remove("active");
+        document.getElementById("tabGif").classList.add("active");
+        document.getElementById("imgPreviews").style.display = "none";
+        document.getElementById("gifPreviews").style.display = "flex";
+        document.getElementById("imageInputGroup").classList.remove("active");
+        document.getElementById("gifInputGroup").classList.add("active");
+        document.getElementById("modeTitle").textContent = "[GIF]";
+    }
+}
 
 let selectedFile = null;
-
-imgInput.addEventListener("change", e => {
+document.getElementById("imgInput").addEventListener("change", e => {
     selectedFile = e.target.files[0];
 });
 
-convert.onclick = () => {
-    if (!selectedFile) {
-        alert("画像を選択してください");
-        return;
+async function extractGifFrames(file) {
+    if (typeof ImageDecoder === "undefined") {
+        alert("お使いのブラウザはImageDecoder非対応です。最新のChromeやEdgeでお試しください。");
+        return [];
     }
+    const response = new Response(file);
+    const decoder = new ImageDecoder({ data: response.body, type: "image/gif" });
+    const frames = [];
+    
+    await decoder.completed;
+    const numFrames = decoder.tracks.selectedTrack.frameCount;
+    
+    for (let i = 0; i < numFrames; i++) {
+        const result = await decoder.decode({ frameIndex: i });
+        frames.push({
+            image: result.image,
+            delay: result.image.duration / 1000
+        });
+    }
+    return frames;
+}
 
-    const img = new Image();
-    img.src = URL.createObjectURL(selectedFile);
+function renderHalftoneFrame(data, width, height, char, levels, cellWidth, cellHeight, fontSize) {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `${fontSize}px monospace`;
 
-    img.onload = () => {
-        const width = parseInt(sizeInput.value);
-        const aspect = img.height / img.width;
-        const height = Math.floor(width * aspect * 0.55);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            const brightness = (r + g + b) / 3;
 
-        const temp = document.createElement("canvas");
-        temp.width = width;
-        temp.height = height;
-        const tctx = temp.getContext("2d");
-        tctx.drawImage(img, 0, 0, width, height);
+            if (brightness > 240) continue;
 
-        const data = tctx.getImageData(0, 0, width, height).data;
-        const char = charInput.value || "#";
-        const colorCount = parseInt(colorCountInput.value);
-        const levels = Math.ceil(Math.cbrt(colorCount));
-        const marginX = parseInt(marginXInput.value);
-        const marginY = parseInt(marginYInput.value);
-        const fontSize = 12;
+            r = Math.round(r / 255 * (levels - 1)) * (255 / (levels - 1));
+            g = Math.round(g / 255 * (levels - 1)) * (255 / (levels - 1));
+            b = Math.round(b / 255 * (levels - 1)) * (255 / (levels - 1));
 
-        ctx.font = `${fontSize}px monospace`;
-        const charWidth = ctx.measureText(char).width;
-        const cellWidth = charWidth + marginX;
-        const cellHeight = fontSize + marginY;
-
-        canvas.width = width * cellWidth;
-        canvas.height = height * cellHeight;
-
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const i = (y * width + x) * 4;
-                let r = data[i];
-                let g = data[i + 1];
-                let b = data[i + 2];
-                const brightness = (r + g + b) / 3;
-
-                if (brightness > 240) continue;
-
-                // 色数制限
-                r = Math.round(r / 255 * (levels - 1)) * (255 / (levels - 1));
-                g = Math.round(g / 255 * (levels - 1)) * (255 / (levels - 1));
-                b = Math.round(b / 255 * (levels - 1)) * (255 / (levels - 1));
-
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
-                ctx.fillText(char, x * cellWidth, (y + 1) * cellHeight);
-            }
+            ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
+            ctx.fillText(char, x * cellWidth, (y + 1) * cellHeight);
         }
-    };
+    }
+}
+
+document.getElementById("convert").onclick = async () => {
+    statusText.textContent = "処理中...";
+    
+    const widthChars = parseInt(document.getElementById("sizeInput").value);
+    const char = document.getElementById("charInput").value || "#";
+    const colorCount = parseInt(document.getElementById("colorCount").value);
+    const levels = Math.ceil(Math.cbrt(colorCount));
+    const marginX = parseInt(document.getElementById("marginX").value);
+    const marginY = parseInt(document.getElementById("marginY").value);
+    const fontSize = 12;
+
+    ctx.font = `${fontSize}px monospace`;
+    const charWidth = ctx.measureText(char).width;
+    const cellWidth = charWidth + marginX;
+    const cellHeight = fontSize + marginY;
+
+    if (currentMode === 'image') {
+        if (!selectedFile) return alert("画像を選択してください");
+
+        const img = new Image();
+        img.src = URL.createObjectURL(selectedFile);
+        img.onload = () => {
+            const aspect = img.height / img.width;
+            
+            // 【変更】固定値0.55を廃止し、セルの実サイズから必要な縦の文字数を正しく逆算
+            const heightChars = Math.round((widthChars * cellWidth * aspect) / cellHeight);
+
+            canvas.width = widthChars * cellWidth;
+            canvas.height = heightChars * cellHeight;
+
+            const temp = document.createElement("canvas");
+            temp.width = widthChars;
+            temp.height = heightChars;
+            const tctx = temp.getContext("2d");
+            tctx.drawImage(img, 0, 0, widthChars, heightChars);
+
+            const data = tctx.getImageData(0, 0, widthChars, heightChars).data;
+            renderHalftoneFrame(data, widthChars, heightChars, char, levels, cellWidth, cellHeight, fontSize);
+            statusText.textContent = "変換完了";
+        };
+    } else {
+        const file = document.getElementById("gifInput").files[0];
+        if (!file) return alert("GIFを選択してください");
+
+        const frames = await extractGifFrames(file);
+        if (frames.length === 0) return;
+
+        const firstFrame = frames[0].image;
+        if (firstFrame.displayWidth === 0 || firstFrame.displayHeight === 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const originalWidth = firstFrame.displayWidth || firstFrame.codedWidth || 300;
+        const originalHeight = firstFrame.displayHeight || firstFrame.codedHeight || 300;
+
+        const aspect = originalHeight / originalWidth;
+        
+        // 【変更】GIFモード側も、セルの実サイズを元に完璧な縦の文字数を逆算
+        const heightChars = Math.round((widthChars * cellWidth * aspect) / cellHeight);
+
+        canvas.width = widthChars * cellWidth;
+        canvas.height = heightChars * cellHeight;
+
+        const workerResponse = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
+        const workerCode = await workerResponse.text();
+        const workerBlob = new Blob([workerCode], { type: "application/javascript" });
+        const workerUrl = URL.createObjectURL(workerBlob);
+
+        const encoder = new GIF({ workers: 2, quality: 10, workerScript: workerUrl });
+
+        for (let idx = 0; idx < frames.length; idx++) {
+            statusText.textContent = `フレーム処理中... (${idx + 1}/${frames.length})`;
+            const frame = frames[idx];
+
+            const temp = document.createElement("canvas");
+            temp.width = originalWidth;
+            temp.height = originalHeight;
+            const tctx = temp.getContext("2d");
+            
+            try {
+                tctx.drawImage(frame.image, 0, 0);
+            } catch (e) {
+                console.error("Frame draw error at:", idx, e);
+                continue; 
+            }
+
+            const scaled = document.createElement("canvas");
+            scaled.width = widthChars;
+            scaled.height = heightChars;
+            const sctx = scaled.getContext("2d");
+            sctx.drawImage(temp, 0, 0, widthChars, heightChars);
+
+            const data = sctx.getImageData(0, 0, widthChars, heightChars).data;
+            renderHalftoneFrame(data, widthChars, heightChars, char, levels, cellWidth, cellHeight, fontSize);
+            
+            frame.image.close();
+            encoder.addFrame(canvas, { copy: true, delay: frame.delay || 50 });
+        }
+
+        encoder.on("finished", blob => {
+            outputBlob = blob;
+            statusText.textContent = "GIF生成完了。「保存」ボタンを押してください。";
+        });
+
+        statusText.textContent = "GIFエンコード中...";
+        encoder.render();
+    }
 };
 
-download.onclick = () => {
-    const a = document.createElement("a");
-    a.download = "halftone.png";
-    a.href = canvas.toDataURL("image/png");
-    a.click();
+document.getElementById("download").onclick = () => {
+    if (currentMode === 'image') {
+        if (canvas.width === 0) return alert("先に変換してください");
+        const a = document.createElement("a");
+        a.download = "halftone.png";
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+    } else {
+        if (!outputBlob) return alert("先に変換を完了させてください");
+        const a = document.createElement("a");
+        a.download = "ascii_animation.gif";
+        a.href = URL.createObjectURL(outputBlob);
+        a.click();
+    }
 };
 </script>
 
